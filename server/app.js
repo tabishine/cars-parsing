@@ -13,27 +13,32 @@ const connectDB = async () => {
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
   }
-};
+  };
 
 connectDB();
 
-//get Data
-// const Car = require("./models");
+//make Car model and get Data from html
 const Car = mongoose.model("Car", {
-  id: String,
+  id: {
+    type:String,
+    required:true
+  },
   title: String,
-  price: String,
+  price: Number,
   city: String,
-  volume: String,
+  volume: Number,
   carcase: String,
   kz: String,
   mileage: String,
-  driving: String,
+  driving: {
+    type:Number,
+    default:null
+  },
 });
 
 const axios = require("axios");
 const cheerio = require("cheerio");
-const id = "158280541";
+const id = "157672808";
 
 async function getData(id) {
   const url = `https://m.kolesa.kz/a/show/${id}`;
@@ -45,17 +50,20 @@ async function getData(id) {
     const carData = {
       id: id,
       title: $(".a-header__title").text().trim().replace(/\s\s+/g, " "),
-      price: $(".a-header__price").text().trim().replace(/[^0-9.]+/g, ""),
+      price: parseInt($(".a-header__price")
+      .text()
+      .trim()
+      .replace(/[^0-9.]+/g, ""))
+      ,
       city: $('.a-properties__label:contains("Город")')
         .next(".a-properties__value")
         .text()
         .trim(),
-      volume: $('.a-properties__label:contains("Объем двигателя, л")')
+      volume: parseInt($('.a-properties__label:contains("Объем двигателя, л")')
         .next(".a-properties__value")
         .text()
         .trim()
-        .replace(/[^0-9.]+/g, "")
-        ,
+        .replace(/[^0-9.]+/g, "")),
       carcase: $('.a-properties__label:contains("Кузов")')
         .next(".a-properties__value")
         .text()
@@ -68,12 +76,17 @@ async function getData(id) {
         .next(".a-properties__value")
         .text()
         .trim(),
-      driving: $('.a-properties__label:contains("Пробег")')
+      driving: parseInt($('.a-properties__label:contains("Пробег")')
         .next(".a-properties__value")
         .text()
         .trim()
-        .replace(/[^0-9.]+/g, ""),
+        ),
     };
+
+    if (Number.isNaN(carData.driving)){
+      carData.driving = null
+    }
+    
     return carData;
   } catch (error) {
     console.error("Error parsing: ", error);
@@ -93,8 +106,6 @@ getData(id).then((carData) => {
 //save Data
 async function saveCarData(carData) {
   try {
-    // const processedPrice = carData.price.replace(/[^0-9.]+/g, " ");
-    // carData.price = processedPrice;
     const car = new Car(carData);
     await car.save();
     console.log("Car data saved");
@@ -102,3 +113,15 @@ async function saveCarData(carData) {
     console.error("Error saving car data to MongoDB:", error);
   }
 }
+
+//JSON format 
+async function main() {
+  const carData = await getData(id);
+  if (carData) {
+    console.log(JSON.stringify(carData, null, 2)); //отступы
+  } else {
+    console.log("Data not found");
+  }
+}
+
+main();
